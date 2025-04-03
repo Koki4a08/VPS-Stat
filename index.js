@@ -1,11 +1,16 @@
 require('dotenv').config();
 const axios = require('axios');
 const { getSystemInformation } = require('./systemInfo');
+const fs = require('fs-extra');
+const path = require('path');
 
 // Get environment variables
 const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
 const channelId = process.env.DISCORD_CHANNEL_ID;
 const updateInterval = parseInt(process.env.UPDATE_INTERVAL || '10');
+
+// Path to store the message ID
+const messageIdPath = path.join(__dirname, 'data', 'message_id.txt');
 
 // Validate environment variables
 if (!webhookUrl || !channelId) {
@@ -20,6 +25,39 @@ const COLORS = {
   WARNING: 0xffff00, // Yellow
   DANGER: 0xff0000 // Red
 };
+
+// Parse webhook URL to get the webhook ID and token
+function parseWebhookUrl(url) {
+  const parts = url.split('/');
+  return {
+    id: parts[parts.length - 2],
+    token: parts[parts.length - 1]
+  };
+}
+
+// Function to get stored message ID
+async function getMessageId() {
+  try {
+    if (await fs.pathExists(messageIdPath)) {
+      const messageId = await fs.readFile(messageIdPath, 'utf8');
+      return messageId.trim();
+    }
+    return null;
+  } catch (error) {
+    console.error('Error reading message ID:', error.message);
+    return null;
+  }
+}
+
+// Save message ID to file
+async function saveMessageId(messageId) {
+  try {
+    await fs.ensureDir(path.dirname(messageIdPath));
+    await fs.writeFile(messageIdPath, messageId);
+  } catch (error) {
+    console.error('Error saving message ID:', error.message);
+  }
+}
 
 async function sendVpsStatusToDiscord() {
   try {
@@ -94,15 +132,49 @@ async function sendVpsStatusToDiscord() {
       }
     };
     
-    // Send the embed to Discord webhook
-    console.log('Sending status to Discord...');
-    await axios.post(webhookUrl, {
+    const messageId = await getMessageId();
+    const webhookParts = parseWebhookUrl(webhookUrl);
+
+    if (messageId) {
+      // Update existing message
+      console.log('Updating existing message...');
+      try {
+        const editUrl = `https://discord.com/api/webhooks/${webhookParts.id}/${webhookParts.token}/messages/${messageId}`;
+        await axios.patch(editUrl, {
+          embeds: [embed]
+        });
+        console.log('Message updated successfully!');
+      } catch (error) {
+        // If edit fails (message might have been deleted), create new message
+        if (error.response && (error.response.status === 404 || error.response.status === 400)) {
+          console.log('Message not found, creating new message...');
+          await createNewMessage(embed, webhookUrl);
+        } else {
+          throw error;
+        }
+      }
+    } else {
+      // Create new message
+      await createNewMessage(embed, webhookUrl);
+    }
+  } catch (error) {
+    console.error('Error sending status to Discord:', error.message);
+  }
+}
+
+async function createNewMessage(embed, webhookUrl) {
+  try {
+    const response = await axios.post(webhookUrl, {
       embeds: [embed]
     });
     
-    console.log('Status sent successfully!');
+    // Extract message ID from response
+    if (response.data && response.data.id) {
+      await saveMessageId(response.data.id);
+      console.log('New message created and ID saved!');
+    }
   } catch (error) {
-    console.error('Error sending status to Discord:', error.message);
+    console.error('Error creating message:', error.message);
   }
 }
 
@@ -114,4 +186,4 @@ const intervalMs = updateInterval * 60 * 1000;
 setInterval(sendVpsStatusToDiscord, intervalMs);
 
 console.log(`VPS monitoring started. Sending updates every ${updateInterval} minutes.`);
-console.log('Press Ctrl+C to stop the monitoring.'); 
+console.log('Running in background mode. Press Ctrl+C to stop the monitoring.'); 

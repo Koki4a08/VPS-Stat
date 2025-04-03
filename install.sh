@@ -1,16 +1,16 @@
 #!/bin/bash
 
-# VPS-BotStat Installation Script
+# One-click installer for VPS-Stat
+# Sets up and starts the service in the background
 
-echo "==== VPS-BotStat Installation ===="
-echo "This script will install VPS-BotStat on your system."
+echo "==== VPS-Stat One-Click Installation ===="
+echo "This script will install VPS-Stat, set it up, and run it as a background service."
 echo
 
 # Check if Node.js is installed
 if ! command -v node &> /dev/null; then
     echo "Node.js is not installed. Installing Node.js..."
     
-    # Install Node.js based on the distribution
     if command -v apt-get &> /dev/null; then
         # Debian/Ubuntu
         curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
@@ -33,10 +33,10 @@ else
     echo "Node.js is already installed."
 fi
 
-# Create a directory for VPS-BotStat
-echo "Creating VPS-BotStat directory..."
-mkdir -p ~/vps-botstat
-cd ~/vps-botstat
+# Create a directory for VPS-Stat
+echo "Creating VPS-Stat directory..."
+mkdir -p ~/vps-stat
+cd ~/vps-stat
 
 # Download project files from GitHub
 echo "Downloading project files from GitHub..."
@@ -67,22 +67,90 @@ rm -rf VPS-Stat-main main.zip
 echo "Installing dependencies..."
 npm install
 
-echo
-echo "=============================================="
-echo "Now you will be prompted to enter your Discord webhook URL and channel ID."
-echo "Please be ready to provide this information."
-echo "Press Enter to continue..."
-read -p ""
-echo "=============================================="
-echo
+# Create .env file
+echo "Please enter your Discord webhook URL (must start with https://discord.com/api/webhooks/):"
+read webhook_url
 
-# Run the setup script
-echo "Running setup script..."
-node setup.js
+if [[ ! "$webhook_url" =~ ^https://discord\.com/api/webhooks/ ]]; then
+    echo "Invalid webhook URL format. Exiting."
+    exit 1
+fi
+
+echo "Please enter your Discord channel ID (numbers only):"
+read channel_id
+
+if [[ ! "$channel_id" =~ ^[0-9]+$ ]]; then
+    echo "Invalid channel ID format. Exiting."
+    exit 1
+fi
+
+echo "Please enter update interval in minutes (default is 10):"
+read update_interval
+
+if [[ -z "$update_interval" ]]; then
+    update_interval=10
+fi
+
+# Create .env file
+echo "Creating configuration file..."
+cat > .env << EOF
+DISCORD_WEBHOOK_URL=$webhook_url
+DISCORD_CHANNEL_ID=$channel_id
+UPDATE_INTERVAL=$update_interval
+EOF
+
+echo "Configuration file created successfully."
+
+# Setup systemd service (for system-wide autostart)
+if command -v systemctl &> /dev/null; then
+    echo "Setting up systemd service for automatic startup..."
+    
+    cat > vps-stat.service << EOF
+[Unit]
+Description=VPS Status Discord Bot
+After=network.target
+
+[Service]
+Type=simple
+User=$(whoami)
+WorkingDirectory=$(pwd)
+ExecStart=$(which node) $(pwd)/index.js
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    sudo mv vps-stat.service /etc/systemd/system/
+    sudo systemctl daemon-reload
+    sudo systemctl enable vps-stat
+    sudo systemctl start vps-stat
+    
+    echo "Service started and enabled to run at boot."
+    echo "You can check its status with: sudo systemctl status vps-stat"
+    
+else
+    # Alternative: Use PM2 for process management
+    echo "Installing PM2 process manager..."
+    sudo npm install -g pm2
+    
+    echo "Starting service with PM2..."
+    pm2 start index.js --name "vps-stat"
+    pm2 save
+    
+    # Setup PM2 to start on boot
+    pm2 startup | tail -n 1 | bash
+    
+    echo "Service started with PM2 and enabled to run at boot."
+    echo "You can check its status with: pm2 status"
+fi
 
 echo
-echo "Installation completed!"
-echo "You can start the VPS monitoring service by running: cd ~/vps-botstat && npm start"
-echo
-echo "To see instructions for setting up the service to start on system boot,"
-echo "please run: cat ~/vps-botstat/service-setup.txt" 
+echo "========================================================"
+echo "VPS-Stat installation completed successfully!"
+echo "The service is now running in the background and will"
+echo "automatically start when your system boots."
+echo "========================================================" 
