@@ -3,8 +3,8 @@
 # One-click installer for VPS-Stat
 # Sets up and starts the service in the background
 
-echo "==== VPS-Stat One-Click Installation ===="
-echo "This script will install VPS-Stat, set it up, and run it as a background service."
+echo "==== VPS-Stat Installation ===="
+echo "This script will install VPS-Stat on your system."
 echo
 
 # Check if Node.js is installed
@@ -67,39 +67,51 @@ rm -rf VPS-Stat-main main.zip
 echo "Installing dependencies..."
 npm install
 
-# Create .env file
-echo "Please enter your Discord webhook URL (must start with https://discord.com/api/webhooks/):"
-read webhook_url
+# Direct configuration without using setup.js
+echo
+echo "=== VPS-Stat Configuration ==="
+echo
 
-if [[ ! "$webhook_url" =~ ^https://discord\.com/api/webhooks/ ]]; then
-    echo "Invalid webhook URL format. Exiting."
-    exit 1
-fi
+# Use read command with prompt for webhook URL
+echo -n "Enter your Discord webhook URL: "
+read -r webhook_url
 
-echo "Please enter your Discord channel ID (numbers only):"
-read channel_id
+# Validate webhook URL format
+while [[ ! "$webhook_url" =~ ^https://discord\.com/api/webhooks/ ]]; do
+    echo "Invalid webhook URL format. It should start with https://discord.com/api/webhooks/"
+    echo -n "Enter your Discord webhook URL: "
+    read -r webhook_url
+done
 
-if [[ ! "$channel_id" =~ ^[0-9]+$ ]]; then
-    echo "Invalid channel ID format. Exiting."
-    exit 1
-fi
+# Prompt for channel ID
+echo -n "Enter your Discord channel ID: "
+read -r channel_id
 
-echo "Please enter update interval in minutes (default is 10):"
-read update_interval
+# Validate channel ID format
+while [[ ! "$channel_id" =~ ^[0-9]+$ ]]; do
+    echo "Invalid channel ID. It should contain only numbers."
+    echo -n "Enter your Discord channel ID: "
+    read -r channel_id
+done
 
+# Prompt for update interval with default
+echo -n "Enter update interval in minutes (default: 10): "
+read -r update_interval
+
+# Set default if empty
 if [[ -z "$update_interval" ]]; then
     update_interval=10
 fi
 
-# Create .env file
-echo "Creating configuration file..."
+# Save configuration to .env file
+echo "Creating .env file..."
 cat > .env << EOF
 DISCORD_WEBHOOK_URL=$webhook_url
 DISCORD_CHANNEL_ID=$channel_id
 UPDATE_INTERVAL=$update_interval
 EOF
 
-echo "Configuration file created successfully."
+echo "Configuration saved successfully."
 
 # Setup systemd service (for system-wide autostart)
 if command -v systemctl &> /dev/null; then
@@ -153,4 +165,7 @@ echo "========================================================"
 echo "VPS-Stat installation completed successfully!"
 echo "The service is now running in the background and will"
 echo "automatically start when your system boots."
-echo "========================================================" 
+echo "========================================================="
+echo "Your Discord channel will now receive VPS status updates."
+echo "The same message will be updated rather than creating new ones."
+echo "=========================================================" 

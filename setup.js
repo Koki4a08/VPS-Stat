@@ -1,8 +1,8 @@
-const inquirer = require('inquirer');
 const fs = require('fs-extra');
 const path = require('path');
 const { exec } = require('child_process');
 const axios = require('axios');
+const readline = require('readline');
 
 const configPath = path.join(__dirname, '.env');
 
@@ -36,61 +36,56 @@ async function setupVpsBot() {
     console.log('Please enter your Discord webhook information:');
     console.log('------------------------------------------\n');
     
-    // Use readline for cleaner input that won't conflict with console output
-    const { createInterface } = require('readline');
-    const rl = createInterface({
+    // Create readline interface for user input
+    const rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout
     });
 
-    // Custom prompt function
-    const promptInput = (question, validator) => {
-      return new Promise((resolve) => {
-        const askQuestion = () => {
-          rl.question(question, (answer) => {
-            if (validator) {
-              const validationResult = validator(answer);
-              if (validationResult !== true) {
-                console.log(`>> ${validationResult}`);
-                return askQuestion();
-              }
-            }
-            resolve(answer);
-          });
-        };
-        askQuestion();
-      });
-    };
+    // Promise wrapper for readline question
+    const question = (query) => new Promise((resolve) => rl.question(query, resolve));
 
-    // Get webhook URL
-    const webhookUrl = await promptInput('Enter your Discord webhook URL: ', (input) => {
-      if (!input) return 'Webhook URL is required';
-      if (!input.startsWith('https://discord.com/api/webhooks/')) {
-        return 'Invalid webhook URL format. It should start with https://discord.com/api/webhooks/';
+    // Get webhook URL with validation
+    let webhookUrl = '';
+    let validWebhook = false;
+    while (!validWebhook) {
+      webhookUrl = await question('Enter your Discord webhook URL: ');
+      if (!webhookUrl) {
+        console.log('Webhook URL is required');
+      } else if (!webhookUrl.startsWith('https://discord.com/api/webhooks/')) {
+        console.log('Invalid webhook URL format. It should start with https://discord.com/api/webhooks/');
+      } else {
+        validWebhook = true;
       }
-      return true;
-    });
+    }
 
-    // Get channel ID
-    const channelId = await promptInput('Enter your Discord channel ID: ', (input) => {
-      if (!input) return 'Channel ID is required';
-      if (!/^\d+$/.test(input)) {
-        return 'Invalid channel ID. It should contain only numbers.';
+    // Get channel ID with validation
+    let channelId = '';
+    let validChannel = false;
+    while (!validChannel) {
+      channelId = await question('Enter your Discord channel ID: ');
+      if (!channelId) {
+        console.log('Channel ID is required');
+      } else if (!/^\d+$/.test(channelId)) {
+        console.log('Invalid channel ID. It should contain only numbers.');
+      } else {
+        validChannel = true;
       }
-      return true;
-    });
+    }
 
-    // Get update interval
-    const updateInterval = await promptInput('Enter update interval in minutes (default: 10): ', (input) => {
-      if (!input) return true; // Default value will be used
-      const num = parseInt(input);
+    // Get update interval with validation
+    let updateInterval = await question('Enter update interval in minutes (default: 10): ');
+    if (!updateInterval) {
+      updateInterval = '10';
+    } else {
+      const num = parseInt(updateInterval);
       if (isNaN(num) || num <= 0) {
-        return 'Please enter a positive number';
+        console.log('Invalid number, using default (10)');
+        updateInterval = '10';
       }
-      return true;
-    }) || '10';
+    }
 
-    // Close readline
+    // Close readline interface
     rl.close();
 
     const envContent = `DISCORD_WEBHOOK_URL=${webhookUrl}
