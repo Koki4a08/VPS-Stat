@@ -129,6 +129,78 @@ EOF
 
 echo "Configuration saved successfully."
 
+# Send an initial message to Discord to get the message ID
+echo
+echo "=== Sending Initial Message to Discord ==="
+echo "We will now send a test message to Discord and ask you to provide the message ID."
+echo
+
+# Function to send a Discord message and return message ID
+send_discord_message() {
+    local message=$(cat <<EOF
+{
+  "content": "VPS Status Monitor - Initial Setup",
+  "embeds": [
+    {
+      "title": "VPS-Stat Setup",
+      "description": "This is an initial setup message. The status updates will replace this message.\n\n**Please copy the message ID from this message's URL.**\n\nTo get the message ID, right-click this message, select 'Copy Message Link' and extract the ID from the end of the URL. The URL will look like: https://discord.com/channels/GUILD_ID/CHANNEL_ID/MESSAGE_ID",
+      "color": 3447003
+    }
+  ]
+}
+EOF
+)
+
+    # Send message to webhook
+    response=$(curl -s -X POST -H "Content-Type: application/json" -d "$message" "$1")
+    echo "$response"
+}
+
+# Send test message
+echo "Sending test message to Discord..."
+result=$(send_discord_message "$webhook_url")
+echo "Discord response: $result"
+
+# Check if we got an ID from Discord
+has_id=false
+if [[ "$result" == *"\"id\""* ]]; then
+    message_id=$(echo "$result" | grep -o '"id":"[0-9]*"' | cut -d'"' -f4)
+    if [[ ! -z "$message_id" ]]; then
+        has_id=true
+        echo "Automatically detected message ID: $message_id"
+    fi
+fi
+
+# If we couldn't automatically extract the ID, ask the user
+if [ "$has_id" = false ]; then
+    echo
+    echo "Please check your Discord channel. A test message has been sent."
+    echo
+    echo "Right-click on the message, select 'Copy Message Link', and paste it here."
+    exec < /dev/tty
+    echo -n "Discord message link: "
+    read message_link
+    exec <&-
+    
+    # Extract message ID from link
+    if [[ "$message_link" =~ /([0-9]+)$ ]]; then
+        message_id="${BASH_REMATCH[1]}"
+    else
+        echo "Could not extract message ID from link. Please enter it manually."
+        exec < /dev/tty
+        echo -n "Message ID: "
+        read message_id
+        exec <&-
+    fi
+fi
+
+# Ensure data directory exists
+mkdir -p data
+
+# Save message ID to file
+echo "$message_id" > data/message_id.txt
+echo "Message ID saved: $message_id"
+
 # Setup systemd service (for system-wide autostart)
 if command -v systemctl &> /dev/null; then
     echo "Setting up systemd service for automatic startup..."

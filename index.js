@@ -27,29 +27,30 @@ const COLORS = {
   DANGER: 0xff0000 // Red
 };
 
-// Function to get stored message ID
-async function getMessageId() {
+// Create data directory immediately at startup
+(async () => {
   try {
     await fs.ensureDir(path.dirname(messageIdPath));
-    if (await fs.pathExists(messageIdPath)) {
-      const messageId = await fs.readFile(messageIdPath, 'utf8');
+    console.log(`Data directory created/verified at ${path.dirname(messageIdPath)}`);
+  } catch (error) {
+    console.error('Failed to create data directory:', error);
+  }
+})();
+
+// Function to get stored message ID
+function getMessageId() {
+  try {
+    if (fs.existsSync(messageIdPath)) {
+      const messageId = fs.readFileSync(messageIdPath, 'utf8');
+      console.log(`Using message ID from file: ${messageId}`);
       return messageId.trim();
+    } else {
+      console.error('Error: Message ID file not found. Please run the install script again.');
+      process.exit(1);
     }
-    return null;
   } catch (error) {
     console.error('Error reading message ID:', error.message);
-    return null;
-  }
-}
-
-// Save message ID to file
-async function saveMessageId(messageId) {
-  try {
-    await fs.ensureDir(path.dirname(messageIdPath));
-    await fs.writeFile(messageIdPath, messageId);
-    console.log(`Message ID ${messageId} saved to ${messageIdPath}`);
-  } catch (error) {
-    console.error('Error saving message ID:', error.message);
+    process.exit(1);
   }
 }
 
@@ -128,8 +129,8 @@ async function sendVpsStatusToDiscord() {
       }]
     };
     
-    // Get the stored message ID
-    const messageId = await getMessageId();
+    // Get the message ID
+    const messageId = getMessageId();
     
     // Extract webhook ID and token from the URL
     const webhookIdMatch = webhookUrl.match(/\/webhooks\/(\d+)\/([^\/]+)/);
@@ -141,42 +142,24 @@ async function sendVpsStatusToDiscord() {
     const webhookId = webhookIdMatch[1];
     const webhookToken = webhookIdMatch[2];
     
-    if (messageId) {
-      try {
-        // Try to edit the existing message
-        console.log(`Attempting to edit message ID: ${messageId}`);
-        
-        // Direct webhook message edit
-        const editUrl = `https://discord.com/api/v10/webhooks/${webhookId}/${webhookToken}/messages/${messageId}`;
-        await axios.patch(editUrl, embed);
-        
-        console.log('Successfully edited the message!');
-      } catch (error) {
-        console.error('Error editing message:', error.message);
-        console.log('Creating a new message instead...');
-        
-        // Create a new message if editing fails
-        const response = await axios.post(webhookUrl, {
-          ...embed,
-          content: "VPS Status Monitor"
-        });
-        
-        if (response.data && response.data.id) {
-          await saveMessageId(response.data.id);
-        }
-      }
-    } else {
-      // No existing message ID, create a new one
-      console.log('No previous message found. Creating a new message...');
+    // Update the existing message
+    try {
+      console.log(`Updating message ID: ${messageId}...`);
       
-      const response = await axios.post(webhookUrl, {
-        ...embed,
-        content: "VPS Status Monitor"
-      });
+      // Direct webhook message edit
+      const editUrl = `https://discord.com/api/v10/webhooks/${webhookId}/${webhookToken}/messages/${messageId}`;
+      await axios.patch(editUrl, embed);
       
-      if (response.data && response.data.id) {
-        await saveMessageId(response.data.id);
+      console.log('Message updated successfully!');
+    } catch (error) {
+      console.error('Error updating message:', error.message);
+      
+      if (error.response) {
+        console.error(`Status: ${error.response.status}`);
+        console.error(`Response data:`, error.response.data);
       }
+      
+      console.log('Please run the install script again to create a new message and update the message ID.');
     }
   } catch (error) {
     console.error('Error in sendVpsStatusToDiscord:', error.message);
