@@ -72,31 +72,47 @@ echo
 echo "=== VPS-Stat Configuration ==="
 echo
 
-# Use read command with prompt for webhook URL
-echo -n "Enter your Discord webhook URL: "
-read -r webhook_url
+# Get webhook URL and validate
+webhook_url=""
+webhook_valid=false
 
-# Validate webhook URL format
-while [[ ! "$webhook_url" =~ ^https://discord\.com/api/webhooks/ ]]; do
-    echo "Invalid webhook URL format. It should start with https://discord.com/api/webhooks/"
+while [ "$webhook_valid" = false ]; do
+    # Use command explicitly in terminal mode
+    exec < /dev/tty
     echo -n "Enter your Discord webhook URL: "
-    read -r webhook_url
+    read webhook_url
+    exec <&-
+    
+    if [[ "$webhook_url" =~ ^https://discord\.com/api/webhooks/ ]]; then
+        webhook_valid=true
+    else
+        echo "Invalid webhook URL format. It should start with https://discord.com/api/webhooks/"
+    fi
 done
 
-# Prompt for channel ID
-echo -n "Enter your Discord channel ID: "
-read -r channel_id
+# Get channel ID and validate
+channel_id=""
+channel_valid=false
 
-# Validate channel ID format
-while [[ ! "$channel_id" =~ ^[0-9]+$ ]]; do
-    echo "Invalid channel ID. It should contain only numbers."
+while [ "$channel_valid" = false ]; do
+    # Use command explicitly in terminal mode
+    exec < /dev/tty
     echo -n "Enter your Discord channel ID: "
-    read -r channel_id
+    read channel_id
+    exec <&-
+    
+    if [[ "$channel_id" =~ ^[0-9]+$ ]]; then
+        channel_valid=true
+    else
+        echo "Invalid channel ID. It should contain only numbers."
+    fi
 done
 
-# Prompt for update interval with default
+# Get update interval
+exec < /dev/tty
 echo -n "Enter update interval in minutes (default: 10): "
-read -r update_interval
+read update_interval
+exec <&-
 
 # Set default if empty
 if [[ -z "$update_interval" ]]; then
