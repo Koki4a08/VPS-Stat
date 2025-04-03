@@ -1,0 +1,32 @@
+{
+  "name": "vps-botstat",
+  "version": "1.0.0",
+  "description": "Discord webhook-based VPS status monitoring tool",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "setup": "node setup.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourusername/VPS-BotStat.git"
+  },
+  "keywords": [
+    "vps",
+    "monitoring",
+    "discord",
+    "webhook",
+    "system-info"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "discord.js": "^14.13.0",
+    "systeminformation": "^5.21.7",
+    "inquirer": "^8.2.6",
+    "node-os-utils": "^1.3.7",
+    "fs-extra": "^11.1.1",
+    "dotenv": "^16.3.1"
+  }
+} 
