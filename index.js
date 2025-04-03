@@ -38,6 +38,7 @@ function parseWebhookUrl(url) {
 // Function to get stored message ID
 async function getMessageId() {
   try {
+    await fs.ensureDir(path.dirname(messageIdPath));
     if (await fs.pathExists(messageIdPath)) {
       const messageId = await fs.readFile(messageIdPath, 'utf8');
       return messageId.trim();
@@ -54,8 +55,58 @@ async function saveMessageId(messageId) {
   try {
     await fs.ensureDir(path.dirname(messageIdPath));
     await fs.writeFile(messageIdPath, messageId);
+    console.log(`Message ID ${messageId} saved to ${messageIdPath}`);
   } catch (error) {
     console.error('Error saving message ID:', error.message);
+  }
+}
+
+// Alternative approach using direct channel message instead of webhook edit
+async function sendDirectMessage(embed) {
+  try {
+    // First, try to get the access token using the webhook token
+    const webhookParts = parseWebhookUrl(webhookUrl);
+    
+    // Create a new message using the standard Discord webhook API
+    const response = await axios.post(webhookUrl, {
+      embeds: [embed],
+      content: "VPS Status Update (Will be updated with latest info)"
+    });
+    
+    // Store the message ID for future updates
+    if (response.data && response.data.id) {
+      await saveMessageId(response.data.id);
+      console.log(`New message created with ID: ${response.data.id}`);
+    }
+    
+    return response.data.id;
+  } catch (error) {
+    console.error('Error sending direct message:', error.message);
+    throw error;
+  }
+}
+
+// Delete the previous message and create a new one
+async function deleteAndCreateMessage(embed) {
+  try {
+    const messageId = await getMessageId();
+    const webhookParts = parseWebhookUrl(webhookUrl);
+    
+    // If there's a previous message, try to delete it
+    if (messageId) {
+      try {
+        const deleteUrl = `https://discord.com/api/webhooks/${webhookParts.id}/${webhookParts.token}/messages/${messageId}`;
+        await axios.delete(deleteUrl);
+        console.log(`Previous message ${messageId} deleted successfully`);
+      } catch (error) {
+        console.log(`Could not delete previous message: ${error.message}`);
+      }
+    }
+    
+    // Create a new message
+    return await sendDirectMessage(embed);
+  } catch (error) {
+    console.error('Error in deleteAndCreateMessage:', error.message);
   }
 }
 
@@ -132,49 +183,11 @@ async function sendVpsStatusToDiscord() {
       }
     };
     
-    const messageId = await getMessageId();
-    const webhookParts = parseWebhookUrl(webhookUrl);
-
-    if (messageId) {
-      // Update existing message
-      console.log('Updating existing message...');
-      try {
-        const editUrl = `https://discord.com/api/webhooks/${webhookParts.id}/${webhookParts.token}/messages/${messageId}`;
-        await axios.patch(editUrl, {
-          embeds: [embed]
-        });
-        console.log('Message updated successfully!');
-      } catch (error) {
-        // If edit fails (message might have been deleted), create new message
-        if (error.response && (error.response.status === 404 || error.response.status === 400)) {
-          console.log('Message not found, creating new message...');
-          await createNewMessage(embed, webhookUrl);
-        } else {
-          throw error;
-        }
-      }
-    } else {
-      // Create new message
-      await createNewMessage(embed, webhookUrl);
-    }
+    // Use the delete and create approach since editing is not working properly
+    await deleteAndCreateMessage(embed);
+    
   } catch (error) {
     console.error('Error sending status to Discord:', error.message);
-  }
-}
-
-async function createNewMessage(embed, webhookUrl) {
-  try {
-    const response = await axios.post(webhookUrl, {
-      embeds: [embed]
-    });
-    
-    // Extract message ID from response
-    if (response.data && response.data.id) {
-      await saveMessageId(response.data.id);
-      console.log('New message created and ID saved!');
-    }
-  } catch (error) {
-    console.error('Error creating message:', error.message);
   }
 }
 
