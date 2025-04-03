@@ -81,11 +81,11 @@ UPDATE_INTERVAL=${answers.updateInterval}`;
 
     const files = [
       { 
-        url: 'https://raw.githubusercontent.com/yourusername/VPS-BotStat/main/index.js',
+        url: 'https://raw.githubusercontent.com/Koki4a08/VPS-Stat/main/index.js',
         dest: path.join(__dirname, 'index.js') 
       },
       { 
-        url: 'https://raw.githubusercontent.com/yourusername/VPS-BotStat/main/systemInfo.js',
+        url: 'https://raw.githubusercontent.com/Koki4a08/VPS-Stat/main/systemInfo.js',
         dest: path.join(__dirname, 'systemInfo.js') 
       }
     ];

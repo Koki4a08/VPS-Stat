@@ -16,12 +16,12 @@ mkdir "%USERPROFILE%\vps-botstat" 2>nul
 cd /d "%USERPROFILE%\vps-botstat"
 
 echo Downloading project files from GitHub...
-curl -L -o main.zip https://github.com/yourusername/VPS-BotStat/archive/refs/heads/main.zip
+curl -L -o main.zip https://github.com/Koki4a08/VPS-Stat/archive/refs/heads/main.zip
 
 echo Extracting files...
 powershell -command "Expand-Archive -Force -Path main.zip -DestinationPath ."
-xcopy /E /Y "VPS-BotStat-main\*" "."
-rmdir /S /Q "VPS-BotStat-main"
+xcopy /E /Y "VPS-Stat-main\*" "."
+rmdir /S /Q "VPS-Stat-main"
 del main.zip
 
 echo Installing dependencies...

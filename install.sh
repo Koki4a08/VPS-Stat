@@ -40,7 +40,7 @@ cd ~/vps-botstat
 
 # Download project files from GitHub
 echo "Downloading project files from GitHub..."
-curl -LO https://github.com/Koki4a08/VPS-BotStat/archive/refs/heads/main.zip
+curl -LO https://github.com/Koki4a08/VPS-Stat/archive/refs/heads/main.zip
 
 # Check if unzip is installed
 if ! command -v unzip &> /dev/null; then
@@ -60,8 +60,8 @@ fi
 # Extract the files
 echo "Extracting files..."
 unzip -o main.zip
-cp -r VPS-BotStat-main/* .
-rm -rf VPS-BotStat-main main.zip
+cp -r VPS-Stat-main/* .
+rm -rf VPS-Stat-main main.zip
 
 # Install Node.js dependencies
 echo "Installing dependencies..."
