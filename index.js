@@ -3,6 +3,7 @@ const axios = require('axios');
 const { getSystemInformation } = require('./systemInfo');
 const fs = require('fs-extra');
 const path = require('path');
+const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 
 // Get environment variables
 const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
@@ -25,15 +26,6 @@ const COLORS = {
   WARNING: 0xffff00, // Yellow
   DANGER: 0xff0000 // Red
 };
-
-// Parse webhook URL to get the webhook ID and token
-function parseWebhookUrl(url) {
-  const parts = url.split('/');
-  return {
-    id: parts[parts.length - 2],
-    token: parts[parts.length - 1]
-  };
-}
 
 // Function to get stored message ID
 async function getMessageId() {
@@ -61,55 +53,6 @@ async function saveMessageId(messageId) {
   }
 }
 
-// Alternative approach using direct channel message instead of webhook edit
-async function sendDirectMessage(embed) {
-  try {
-    // First, try to get the access token using the webhook token
-    const webhookParts = parseWebhookUrl(webhookUrl);
-    
-    // Create a new message using the standard Discord webhook API
-    const response = await axios.post(webhookUrl, {
-      embeds: [embed],
-      content: "VPS Status Update (Will be updated with latest info)"
-    });
-    
-    // Store the message ID for future updates
-    if (response.data && response.data.id) {
-      await saveMessageId(response.data.id);
-      console.log(`New message created with ID: ${response.data.id}`);
-    }
-    
-    return response.data.id;
-  } catch (error) {
-    console.error('Error sending direct message:', error.message);
-    throw error;
-  }
-}
-
-// Delete the previous message and create a new one
-async function deleteAndCreateMessage(embed) {
-  try {
-    const messageId = await getMessageId();
-    const webhookParts = parseWebhookUrl(webhookUrl);
-    
-    // If there's a previous message, try to delete it
-    if (messageId) {
-      try {
-        const deleteUrl = `https://discord.com/api/webhooks/${webhookParts.id}/${webhookParts.token}/messages/${messageId}`;
-        await axios.delete(deleteUrl);
-        console.log(`Previous message ${messageId} deleted successfully`);
-      } catch (error) {
-        console.log(`Could not delete previous message: ${error.message}`);
-      }
-    }
-    
-    // Create a new message
-    return await sendDirectMessage(embed);
-  } catch (error) {
-    console.error('Error in deleteAndCreateMessage:', error.message);
-  }
-}
-
 async function sendVpsStatusToDiscord() {
   try {
     console.log('Collecting system information...');
@@ -128,66 +71,115 @@ async function sendVpsStatusToDiscord() {
     
     // Create Discord embed
     const embed = {
-      title: `VPS Status: ${sysInfo.hostname}`,
-      color: statusColor,
-      timestamp: new Date().toISOString(),
-      fields: [
-        {
-          name: '📊 System',
-          value: [
-            `**OS**: ${sysInfo.osInfo.distro} ${sysInfo.osInfo.release} (${sysInfo.osInfo.arch})`,
-            `**Kernel**: ${sysInfo.osInfo.kernel}`,
-            `**Uptime**: ${sysInfo.uptime}`
-          ].join('\n'),
-          inline: false
-        },
-        {
-          name: '🔧 CPU',
-          value: [
-            `**Model**: ${sysInfo.cpu.brand}`,
-            `**Cores**: ${sysInfo.cpu.physicalCores} physical / ${sysInfo.cpu.cores} logical`,
-            `**Speed**: ${sysInfo.cpu.speed} GHz`,
-            `**Usage**: ${sysInfo.cpu.usage.toFixed(2)}%`
-          ].join('\n'),
-          inline: true
-        },
-        {
-          name: '💾 Memory',
-          value: [
-            `**Total**: ${sysInfo.memory.total} GB`,
-            `**Used**: ${sysInfo.memory.used} GB (${sysInfo.memory.usedPercent}%)`,
-            `**Free**: ${sysInfo.memory.free} GB`
-          ].join('\n'),
-          inline: true
-        },
-        {
-          name: '💿 Disk',
-          value: [
-            `**Total**: ${sysInfo.disk.total} GB`,
-            `**Used**: ${sysInfo.disk.used} GB (${sysInfo.disk.usedPercent}%)`,
-            `**Free**: ${sysInfo.disk.free} GB`
-          ].join('\n'),
-          inline: true
-        },
-        {
-          name: '🌐 Network',
-          value: [
-            `**Internal IP**: ${sysInfo.network.internalIp}`,
-            `**External IP**: ${sysInfo.network.externalIp}`
-          ].join('\n'),
-          inline: false
+      embeds: [{
+        title: `VPS Status: ${sysInfo.hostname}`,
+        color: statusColor,
+        timestamp: new Date().toISOString(),
+        fields: [
+          {
+            name: '📊 System',
+            value: [
+              `**OS**: ${sysInfo.osInfo.distro} ${sysInfo.osInfo.release} (${sysInfo.osInfo.arch})`,
+              `**Kernel**: ${sysInfo.osInfo.kernel}`,
+              `**Uptime**: ${sysInfo.uptime}`
+            ].join('\n'),
+            inline: false
+          },
+          {
+            name: '🔧 CPU',
+            value: [
+              `**Model**: ${sysInfo.cpu.brand}`,
+              `**Cores**: ${sysInfo.cpu.physicalCores} physical / ${sysInfo.cpu.cores} logical`,
+              `**Speed**: ${sysInfo.cpu.speed} GHz`,
+              `**Usage**: ${sysInfo.cpu.usage.toFixed(2)}%`
+            ].join('\n'),
+            inline: true
+          },
+          {
+            name: '💾 Memory',
+            value: [
+              `**Total**: ${sysInfo.memory.total} GB`,
+              `**Used**: ${sysInfo.memory.used} GB (${sysInfo.memory.usedPercent}%)`,
+              `**Free**: ${sysInfo.memory.free} GB`
+            ].join('\n'),
+            inline: true
+          },
+          {
+            name: '💿 Disk',
+            value: [
+              `**Total**: ${sysInfo.disk.total} GB`,
+              `**Used**: ${sysInfo.disk.used} GB (${sysInfo.disk.usedPercent}%)`,
+              `**Free**: ${sysInfo.disk.free} GB`
+            ].join('\n'),
+            inline: true
+          },
+          {
+            name: '🌐 Network',
+            value: [
+              `**Internal IP**: ${sysInfo.network.internalIp}`,
+              `**External IP**: ${sysInfo.network.externalIp}`
+            ].join('\n'),
+            inline: false
+          }
+        ],
+        footer: {
+          text: `Last updated • Next update in ${updateInterval} minutes`
         }
-      ],
-      footer: {
-        text: `Last updated • Next update in ${updateInterval} minutes`
-      }
+      }]
     };
     
-    // Use the delete and create approach since editing is not working properly
-    await deleteAndCreateMessage(embed);
+    // Get the stored message ID
+    const messageId = await getMessageId();
     
+    // Extract webhook ID and token from the URL
+    const webhookIdMatch = webhookUrl.match(/\/webhooks\/(\d+)\/([^\/]+)/);
+    if (!webhookIdMatch) {
+      console.error('Invalid webhook URL format');
+      return;
+    }
+    
+    const webhookId = webhookIdMatch[1];
+    const webhookToken = webhookIdMatch[2];
+    
+    if (messageId) {
+      try {
+        // Try to edit the existing message
+        console.log(`Attempting to edit message ID: ${messageId}`);
+        
+        // Direct webhook message edit
+        const editUrl = `https://discord.com/api/v10/webhooks/${webhookId}/${webhookToken}/messages/${messageId}`;
+        await axios.patch(editUrl, embed);
+        
+        console.log('Successfully edited the message!');
+      } catch (error) {
+        console.error('Error editing message:', error.message);
+        console.log('Creating a new message instead...');
+        
+        // Create a new message if editing fails
+        const response = await axios.post(webhookUrl, {
+          ...embed,
+          content: "VPS Status Monitor"
+        });
+        
+        if (response.data && response.data.id) {
+          await saveMessageId(response.data.id);
+        }
+      }
+    } else {
+      // No existing message ID, create a new one
+      console.log('No previous message found. Creating a new message...');
+      
+      const response = await axios.post(webhookUrl, {
+        ...embed,
+        content: "VPS Status Monitor"
+      });
+      
+      if (response.data && response.data.id) {
+        await saveMessageId(response.data.id);
+      }
+    }
   } catch (error) {
-    console.error('Error sending status to Discord:', error.message);
+    console.error('Error in sendVpsStatusToDiscord:', error.message);
   }
 }
 
