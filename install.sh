@@ -67,6 +67,15 @@ rm -rf VPS-Stat-main main.zip
 echo "Installing dependencies..."
 npm install
 
+echo
+echo "=============================================="
+echo "Now you will be prompted to enter your Discord webhook URL and channel ID."
+echo "Please be ready to provide this information."
+echo "Press Enter to continue..."
+read -p ""
+echo "=============================================="
+echo
+
 # Run the setup script
 echo "Running setup script..."
 node setup.js
@@ -75,26 +84,5 @@ echo
 echo "Installation completed!"
 echo "You can start the VPS monitoring service by running: cd ~/vps-botstat && npm start"
 echo
-echo "To automatically start the service on system boot, you can set up a systemd service or cron job."
-echo "Example systemd service:"
-echo
-echo "Create file /etc/systemd/system/vps-botstat.service with content:"
-echo "
-[Unit]
-Description=VPS Monitoring Discord Bot
-After=network.target
-
-[Service]
-Type=simple
-User=$(whoami)
-WorkingDirectory=$(pwd)
-ExecStart=$(which node) $(pwd)/index.js
-Restart=on-failure
-
-[Install]
-WantedBy=multi-user.target
-"
-echo
-echo "Then run:"
-echo "sudo systemctl enable vps-botstat"
-echo "sudo systemctl start vps-botstat" 
+echo "To see instructions for setting up the service to start on system boot,"
+echo "please run: cat ~/vps-botstat/service-setup.txt" 

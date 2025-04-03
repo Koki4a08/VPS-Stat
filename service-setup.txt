@@ -1,0 +1,58 @@
+=== VPS-Stat Service Setup ===
+
+To automatically start the VPS-Stat service on system boot, you can set up a systemd service
+or cron job.
+
+== Option 1: Systemd Service (Recommended) ==
+
+1. Create a systemd service file:
+
+   sudo nano /etc/systemd/system/vps-stat.service
+
+2. Add the following content to the file:
+
+[Unit]
+Description=VPS Status Discord Bot
+After=network.target
+
+[Service]
+Type=simple
+User=YOUR_USERNAME
+WorkingDirectory=/path/to/vps-stat
+ExecStart=/usr/bin/node /path/to/vps-stat/index.js
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+
+3. Replace "YOUR_USERNAME" with your username and "/path/to/vps-stat" with the actual path
+   to the VPS-Stat directory.
+
+4. Enable and start the service:
+
+   sudo systemctl enable vps-stat
+   sudo systemctl start vps-stat
+
+5. Check the status of the service:
+
+   sudo systemctl status vps-stat
+
+== Option 2: Cron Job ==
+
+1. Open your crontab:
+
+   crontab -e
+
+2. Add the following line to run the service on system reboot:
+
+   @reboot cd /path/to/vps-stat && /usr/bin/node index.js
+
+3. Replace "/path/to/vps-stat" with the actual path to the VPS-Stat directory.
+
+4. Save and exit the editor.
+
+== Manual Start ==
+
+To manually start the service at any time:
+
+cd ~/vps-botstat && npm start 

@@ -25,12 +25,16 @@ async function downloadFile(url, destination) {
 }
 
 async function setupVpsBot() {
-  console.log('==== VPS-BotStat Setup ====');
+  console.log('==== VPS-Stat Setup ====');
   
   try {
     console.log('Checking dependencies...');
     
     await fs.ensureDir(path.join(__dirname, 'data'));
+    
+    console.log('\n------------------------------------------');
+    console.log('Please enter your Discord webhook information:');
+    console.log('------------------------------------------\n');
     
     const answers = await inquirer.prompt([
       {
